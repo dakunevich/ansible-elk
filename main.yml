@@ -1,0 +1,81 @@
+---
+- hosts: all
+  become: true
+
+  vars:
+    #es_transport_ip: 172.16.0.6
+    #mount_point: /data/elasticsearch
+    mount_point: /var/lib/elasticsearch
+    # ports
+    logstash_syslog_udp_port: 5000
+    logstash_syslog_tcp_port: 5000
+    logstash_huawei_syslog_udp_port: 5100
+    logstash_netflow_udp_port: 5500
+    #
+    es_cluster_name: "switch-logs"
+    es_hosts: '["172.17.0.250", "172.17.0.249", "172.17.0.248"]'
+    es_hosts_output: '["172.17.0.250:9200", "172.17.0.249:9200", "172.17.0.248:9200"]'
+    es_syslog_index: "syslog-%{+YYYY.MM.dd}"
+    es_netflow_index: "netflow-%{+YYYY.MM.dd}"
+    es_default_index: "logstash-%{+YYYY.MM.dd}"
+    es_syslog_doc_type: "syslog"
+    es_huawei_syslog_index: "huawei_syslog-%{+YYYY.MM.dd}"
+    es_netflow_doc_type: "netflow"
+    es_huawei_doc_type: "huawei_syslog"
+    keepalived_floating_ip: 172.17.0.247
+    es_start_service: true
+    keepalived_start_service: true
+    kibana_start_service: true
+    logstash_start_service: true
+    elk_server: 172.17.0.250
+    deploy_dashboard: true
+    activate_system_module: true
+    activate_docker_module: false
+
+  tasks:
+
+  - name: Only run "update_cache=yes" if the last one is more than 3600 seconds ago
+    apt:
+      update_cache: yes
+      cache_valid_time: 3600
+
+  - name: Add elastic repo key
+    apt_key:
+      url: https://packages.elastic.co/GPG-KEY-elasticsearch
+      state: present
+    tags:
+      - elasticsearch
+
+  - name: Add elastic.co repo
+    apt_repository:
+      repo: 'deb https://artifacts.elastic.co/packages/6.x/apt stable main'
+      state: present
+      filename: 'elastic-repo'
+    tags:
+      - elasticsearch
+
+  - name: Install aditional packages
+    apt:
+      name: "{{ item }}"
+      state: present
+    with_items:
+      - apt-transport-https
+      - python-apt
+      - software-properties-common
+      - wget
+      - curl
+      - mc
+      - vim
+      - python-passlib
+    tags:
+      - packages
+
+  roles:
+    - { role: jdk, when: "inventory_hostname in groups['elk']" }
+    - elasticsearch
+    - logstash
+    - kibana
+    - keepalived
+    - { role: nginx, tags: ['nginx'] }
+    - { role: metricbeat, tags: ['metricbeat'] }
+

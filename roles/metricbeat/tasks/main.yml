@@ -1,0 +1,31 @@
+---
+- name: Add an apt key by id from a keyserver
+  apt_key:
+    url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    id: D88E42B4
+    state: present
+
+- name: Add elasticsearch repository
+  apt_repository:
+    repo: deb https://artifacts.elastic.co/packages/6.x/apt stable main
+    filename: elastic-6.x.list
+    state: present
+
+- name: Install Metricbeat
+  apt:
+    name: metricbeat
+    state: present
+
+- name: Configure metricbeat to collect docker stats
+  template:
+    src: metricbeat.yml.j2
+    dest: /etc/metricbeat/metricbeat.yml
+  notify: "notify metricbeat for restart"
+
+- name: Configure Dashboard if deploy_dashboard has been set in vars
+  lineinfile:
+    path: /etc/metricbeat/metricbeat.yml
+    line: "dashboards.enabled: true"
+  notify: "notify metricbeat for restart"
+  when: deploy_dashboard | bool
+

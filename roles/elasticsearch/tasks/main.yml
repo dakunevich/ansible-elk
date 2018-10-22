@@ -1,0 +1,86 @@
+---
+- name: Install elasticsearch
+  apt:
+    name: elasticsearch
+    state: present
+  when: "inventory_hostname in groups['elasticsearch']"
+  tags:
+    - elasticsearch
+
+- name: Configure elasticsearch data-nodes
+  template:
+    src: elasticsearch.yml.j2
+    dest: /etc/elasticsearch/elasticsearch.yml
+    group: elasticsearch
+    mode: 0644
+  when: "inventory_hostname in groups['elasticsearch-data']"
+
+- name: ES | set ES_HEAP_SIZE
+  lineinfile:
+    path: /etc/default/elasticsearch
+    regexp: '^#ES_JAVA_OPTS='
+    line: 'ES_JAVA_OPTS="-Xms4g -Xmx4g"'
+  when: "inventory_hostname in groups['elasticsearch-data']"
+
+- name: ES | set MAX_LOCKED_MEMORY=unlimited
+  lineinfile:
+    path: /etc/default/elasticsearch
+    regexp: '^#MAX_LOCKED_MEMORY=unlimited'
+    line: 'MAX_LOCKED_MEMORY=unlimited'
+  when: "inventory_hostname in groups['elasticsearch-data']"
+
+- name: ES | set MAX_OPEN_FILES
+  lineinfile:
+    path: /etc/default/elasticsearch
+    regexp: '^#MAX_OPEN_FILES=65536'
+    line: 'MAX_OPEN_FILES=131070'
+  when: "inventory_hostname in groups['elasticsearch-data']"
+
+- name: Set hard memlock to unlimited /etc/security/limits.conf
+  pam_limits:
+    domain: elasticsearch
+    limit_type: hard
+    limit_item: memlock
+    value: unlimited
+  when: "inventory_hostname in groups['elasticsearch-data']"
+
+- name: Set soft memlock to unlimited /etc/security/limits.conf
+  pam_limits:
+    domain: elasticsearch
+    limit_type: soft
+    limit_item: memlock
+    value: unlimited
+  when: "inventory_hostname in groups['elasticsearch-data']"
+
+- name: Add pam_limits.so to /etc/pam.d/common-session
+  lineinfile:
+    path: /etc/pam.d/common-session
+    line: "session required pam_limits.so"
+    insertafter:  EOF
+    state: present
+  when: "inventory_hostname in groups['elasticsearch-data']"
+
+- name: Add LimitMEMLOCK=infinity
+  lineinfile:
+    path: /usr/lib/systemd/system/elasticsearch.service
+    line: "LimitMEMLOCK=infinity"
+    insertafter: "^LimitFSIZE=infinity"
+    state: present
+  when: "inventory_hostname in groups['elasticsearch-data']"
+
+- name: Configure elasticsearch coordinating node
+  template:
+    src: es-coordinating.yml.j2
+    dest: /etc/elasticsearch/elasticsearch.yml
+    group: elasticsearch
+    mode: 0644
+  when: "inventory_hostname in groups['elasticsearch-coordinating']"
+
+- name: Make sure elasticsearch is started
+  systemd: name=elasticsearch state=started enabled=yes
+  when:
+    - es_start_service
+    - "inventory_hostname in groups['elasticsearch-coordinating']"
+
+- name: just force systemd to reread configs (2.4 and above)
+  systemd: daemon_reload=yes

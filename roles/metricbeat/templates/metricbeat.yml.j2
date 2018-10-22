@@ -1,0 +1,51 @@
+metricbeat.modules:
+{% if activate_system_module %}
+- module: system
+  metricsets:
+    - cpu
+    - filesystem
+    - fsstat
+    - load
+    - memory
+    - network
+    - process
+    - process_summary
+    - uptime
+    - core
+  enabled: true
+  period: 10s
+  processes: ['.*']
+  cpu_ticks: false
+
+{% endif %}
+{% if activate_docker_module %}
+- module: docker
+  metricsets: ["container", "cpu", "diskio", "healthcheck", "info", "memory", "network"]
+  hosts: ["unix:///var/run/docker.sock"]
+  enabled: true
+  period: 10s
+
+{% endif %}
+
+{% if ansible_fqdn in groups['load-balancers'] %}
+metricbeat.modules:
+- module: nginx
+  metricsets: ["stubstatus"]
+  period: 10s
+
+  # Nginx hosts
+  hosts: ["http://{{ ansible_ssh_host }}"]
+{% endif %}
+
+{% if ansible_fqdn in groups['logstash'] %}
+setup.kibana:
+  host: "{{ ansible_ssh_host }}:5601"
+{% endif %}
+
+setup.template.name: "metricbeat"
+setup.template.pattern: "metricbeat-*"
+
+output.elasticsearch:
+  hosts: ["{{elk_server}}:9200"]
+  index: "metricbeat-%{+yyyy.MM.dd}"
+

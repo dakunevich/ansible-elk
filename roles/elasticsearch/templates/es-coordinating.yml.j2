@@ -1,0 +1,24 @@
+cluster.name: {{ es_cluster_name }}
+
+# 3. You want this node to be neither master nor data node nor ingest node, but
+#    to act as a "search load balancer" (fetching data from nodes,
+#    aggregating results, etc.)
+#
+node.name: {{ inventory_hostname }}
+
+node.master: false
+node.data: false
+node.ingest: false
+#search.remote.connect: false
+
+network.host: localhost
+http.port: 9200
+
+path.data: /var/lib/elasticsearch
+path.logs: /var/log/elasticsearch
+
+discovery.zen.ping.unicast.hosts: {{ es_hosts }}
+
+# by default transport.host refers to network.host
+transport.host: {{ ansible_default_ipv4.address }}
+#transport.tcp.port: 9300 - 9400

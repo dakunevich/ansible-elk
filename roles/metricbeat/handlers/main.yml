@@ -1,0 +1,4 @@
+---
+- name: "notify metricbeat for restart"
+  service: name=metricbeat state=restarted enabled=yes
+

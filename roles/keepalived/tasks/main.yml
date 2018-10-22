@@ -1,0 +1,43 @@
+---
+- name: Install keepalived
+  apt:
+    name: keepalived
+    state: present
+  when: "inventory_hostname in groups['load-balancers']"
+
+- name: Set ip_nonlocal_bind
+  sysctl:
+    name: net.ipv4.ip_nonlocal_bind
+    value: 1
+    sysctl_file: /etc/sysctl.conf
+    reload: yes
+  when: "inventory_hostname in groups['load-balancers']"
+
+- name: Set vs.drop_entry
+  sysctl:
+    name: net.ipv4.vs.drop_entry
+    value: 1
+    sysctl_file: /etc/sysctl.conf
+    reload: yes
+  when: "inventory_hostname in groups['load-balancers']"
+
+- name: Set nf_conntrack_max
+  sysctl:
+    name: net.nf_conntrack_max
+    value: 4194304
+    sysctl_file: /etc/sysctl.conf
+    reload: yes
+  when: "inventory_hostname in groups['load-balancers']"
+
+- name: Configure keepalived
+  template:
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+    mode: 0644
+  when: "inventory_hostname in groups['load-balancers']"
+
+- name: Make sure keepalived is started
+  systemd: name=keepalived state=started enabled=yes
+  when:
+    - keepalived_start_service
+    - "inventory_hostname in groups['load-balancers']"

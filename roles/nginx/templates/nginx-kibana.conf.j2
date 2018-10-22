@@ -1,0 +1,37 @@
+upstream backend_servers {
+  least_conn;
+
+  server 192.168.0.252:5601;
+  server 192.168.0.251:5601;
+}
+
+server {
+  #listen 80;
+  #server_name kibana;
+  listen {{ ansible_default_ipv4.address }}:80 default_server;
+  listen {{ keepalived_floating_ip }}:80 default_server;
+
+  error_log   /var/log/nginx/kibana.error.log;
+  access_log  /var/log/nginx/kibana.access.log;
+
+  server_tokens off;
+
+  location / {
+    auth_basic "Restricted Content";
+    auth_basic_user_file /etc/nginx/htpasswd.kibana;
+
+    rewrite ^/(.*) /$1 break;
+    proxy_ignore_client_abort on;
+    proxy_pass http://backend_servers;
+    proxy_set_header  X-Real-IP  $remote_addr;
+    proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header  Host $http_host;
+
+  }
+
+  location /server-status {
+    stub_status on;
+    access_log   off;
+    allow all;
+  }
+}

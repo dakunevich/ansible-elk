@@ -1,0 +1,39 @@
+# vim: set ft=dosini :
+#
+[all:vars]
+#ansible_python_interpreter=/usr/bin/python2.7
+
+[load-balancers]
+#b-1 ansible_ssh_host=172.17.0.252
+#b-2 ansible_ssh_host=172.17.0.251
+lb-1 ansible_ssh_host=172.17.0.246
+lb-2 ansible_ssh_host=172.17.0.245
+
+[kibana]
+b-1 ansible_ssh_host=172.17.0.252
+b-2 ansible_ssh_host=172.17.0.251
+
+[logstash]
+b-1 ansible_ssh_host=172.17.0.252
+b-2 ansible_ssh_host=172.17.0.251
+
+[elasticsearch-coordinating]
+b-1 ansible_ssh_host=172.17.0.252
+b-2 ansible_ssh_host=172.17.0.251
+
+[elasticsearch-data]
+c-1 ansible_ssh_host=172.17.0.250
+c-2 ansible_ssh_host=172.17.0.249
+c-3 ansible_ssh_host=172.17.0.248
+
+[monitoring]
+stg-1 ansible_ssh_host=172.17.0.244
+
+[elasticsearch:children]
+elasticsearch-coordinating
+elasticsearch-data
+
+[elk:children]
+kibana
+logstash
+elasticsearch

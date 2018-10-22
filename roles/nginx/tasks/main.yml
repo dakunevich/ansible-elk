@@ -1,0 +1,55 @@
+---
+- name: Install nginx
+  apt:
+    name: nginx
+    state: present
+  when: "inventory_hostname in groups['load-balancers']"
+
+- name: Generate nginx kibana auth passw
+  htpasswd:
+    path: /etc/nginx/htpasswd.kibana
+    name: andrey
+    password: "{{ kibana_pass }}"
+    owner: root
+    group: www-data
+    mode: 0640
+  when: "inventory_hostname in groups['load-balancers']"
+
+#- name: Create a basic authentication for nginx
+#  shell: 'echo "admin:$(openssl passwd -apr1 {{ kibana_pass }})" | sudo tee -a /etc/nginx/htpasswd.kibana'
+#  when: "inventory_hostname in groups['load-balancers']"
+
+- name: Remove default nginx site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  when: "inventory_hostname in groups['load-balancers']"
+
+- name: Create nginx kibana configuration
+  template:
+    src: nginx-kibana.conf.j2
+    dest: /etc/nginx/conf.d/kibana.conf
+    mode: 0644
+  register: nginx_kibana_conf
+  when: "inventory_hostname in groups['load-balancers']"
+
+- name: Configure streams in nginx.conf
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    mode: 0644
+  register: nginx_conf
+  when: "inventory_hostname in groups['load-balancers']"
+
+- name: Restart nginx if nginx.conf changed
+  debug: msg="Restart nginx. Nginx.conf changed"
+  when: nginx_conf.changed
+  notify: restart nginx
+
+- name: Restart nginx
+  systemd:
+    name: nginx
+    state: restarted
+  when:
+    - "inventory_hostname in groups['load-balancers']"
+    - nginx_kibana_conf.changed

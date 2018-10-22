@@ -1,0 +1,63 @@
+---
+- hosts: all
+  become: true
+
+  vars:
+    volume_group: "vg_data"
+    logical_volume: "es"
+    physical_disk: "/dev/xvdb"
+    volume_size: "100%FREE"
+    volume_fstype: "ext4"
+    mount_opts: "defaults,noatime,nodiratime,discard"
+
+- name: LVG | get {{ volume_group }} volume group status
+  shell: vgdisplay | grep {{ volume_group }}
+  check_mode: no
+  register: vg
+  ignore_errors: True
+
+- name: LVOL | get {{ logical_volume }} logical volume status
+  shell: lvdisplay | grep {{ logical_volume }}
+  check_mode: no
+  register: vg
+  ignore_errors: True
+
+- name: LVG | Create vg_mirror volume group
+  lvg:
+    vg: "{{ volume_group }}"
+    pvs: "{{ physical_disk }}"
+    state: present
+  #when: vg.rc != 0
+
+- name: LVOL | Create logical volume
+  lvol:
+    vg: "{{ volume_group }}"
+    lv: "{{ logical_volume }}"
+    size: "{{ volume_size }}"
+    shrink: no
+    state: present
+  #when:
+  #  - vg.rc != 0
+
+- name: Create a ext4 filesystem on {{ physical_disk }}.
+  filesystem:
+    fstype: "{{ volume_fstype }}"
+    dev: "/dev/{{ volume_group }}/{{ logical_volume }}"
+  #when:
+  #  - vg.rc != 0
+  #  - lv.rc != 0
+
+- name: Create mount point "{{ mount_point }}"
+  file:
+    path: "{{ mount_point }}"
+    owner: elasticsearch
+    group: elasticsearch
+    state: directory
+
+- name: Mount up device {{ physical_disk }}
+  mount:
+    path: "{{ mount_point }}"
+    src: "/dev/{{ volume_group }}/{{ logical_volume }}"
+    fstype: "{{ volume_fstype }}"
+    opts: "{{ mount_opts }}"
+    state: mounted

@@ -1,0 +1,8 @@
+---
+# ports
+logstash_syslog_udp_port: 5000
+logstash_syslog_tcp_port: 5000
+logstash_huawei_syslog_udp_port: 5100
+logstash_netflow_udp_port: 5500
+
+
